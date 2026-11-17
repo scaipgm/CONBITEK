@@ -28,9 +28,8 @@
         <section>
             <h2 class="text-xl font-semibold mb-6 text-slate-200 border-b border-slate-800 pb-2">📋 Cartelera de Partidos en Directo</h2>
             <div id="resultadoContainer" class="space-y-6">
-                <!-- Los partidos reales aparecerán uno debajo del otro aquí -->
                 <div class="bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl p-10 text-center text-slate-500 animate-pulse">
-                    Conectando con el servidor para buscar partidos reales...
+                    Conectando con el servidor...
                 </div>
             </div>
         </section>
@@ -45,17 +44,8 @@
                 const response = await fetch('/api/analizar-partidos');
                 const data = await response.json();
 
-                if (data.status === "error" || !data.combinadas) {
-                    contenedor.innerHTML = `<div class="bg-red-950/40 border border-red-500/30 p-6 rounded-xl text-red-300 text-center">❌ Error al conectar con el servidor backend.</div>`;
-                    return;
-                }
-
-                if (data.combinadas.length === 0) {
-                    contenedor.innerHTML = `
-                        <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl text-center text-slate-400 shadow-xl">
-                            ⚠️ <strong>No hay partidos disponibles en la API gratuita para este exacto momento.</strong><br>
-                            <span class="text-xs text-slate-500 mt-2 block">La API de football-data.org solo libera partidos en días de cartelera oficial de ligas europeas o torneos principales. Vuelve a consultar durante el fin de semana.</span>
-                        </div>`;
+                if (!data.combinadas || data.combinadas.length === 0) {
+                    contenedor.innerHTML = `<div class="bg-slate-900 p-6 rounded-xl text-center text-slate-400">No hay datos disponibles en este momento.</div>`;
                     return;
                 }
 
@@ -63,25 +53,21 @@
                 data.combinadas.forEach(p => {
                     htmlContent += `
                         <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col gap-4">
-                            <!-- Cabecera -->
                             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
                                 <span class="text-xs font-semibold text-emerald-400 uppercase tracking-wider bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">${p.liga}</span>
-                                <span class="text-xs bg-cyan-500/10 text-cyan-300 px-3 py-1 rounded-full border border-cyan-500/20 font-semibold">Confianza IA: ${p.probabilidad}%</span>
+                                <span class="text-xs bg-cyan-500/10 text-cyan-300 px-3 py-1 rounded-full border border-cyan-500/20 font-semibold">Estado API: ${p.probabilidad}% OK</span>
                             </div>
 
-                            <!-- Equipos y Fecha -->
                             <div>
                                 <h3 class="text-xl font-bold text-white">${p.equipoLocal} vs ${p.equipoVisitante}</h3>
                                 <p class="text-xs text-slate-400 mt-0.5">🕒 ${p.fecha}</p>
                             </div>
 
-                            <!-- Apuesta Principal -->
                             <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-                                <span class="text-xs text-slate-400 uppercase font-semibold">🎯 Sugerencia de Mercado:</span>
-                                <p class="text-lg font-bold text-amber-400 mt-1">${p.mercadoPrincipal} <span class="text-xs text-slate-300 font-normal">(Cuota Est: ~${p.cuotaEstimada})</span></p>
+                                <span class="text-xs text-slate-400 uppercase font-semibold">🎯 Estado del Sistema:</span>
+                                <p class="text-lg font-bold text-amber-400 mt-1">${p.mercadoPrincipal}</p>
                             </div>
 
-                            <!-- Métricas -->
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                                 <div class="bg-slate-950/40 p-3 rounded-lg border border-slate-800/80">
                                     <span class="text-xs text-slate-400 block">🚩 Córners:</span>
@@ -97,9 +83,8 @@
                                 </div>
                             </div>
 
-                            <!-- Análisis Contextual -->
                             <div class="text-xs text-slate-400 bg-slate-950/50 p-3 rounded-lg border border-slate-800/60">
-                                🧠 <strong class="text-slate-300">Contexto en vivo:</strong> ${p.analisisIA}
+                                🧠 <strong class="text-slate-300">Diagnóstico:</strong> ${p.analisisIA}
                             </div>
                         </div>
                     `;
@@ -112,7 +97,6 @@
             }
         }
 
-        // Cargar automáticamente al abrir la página
         window.onload = cargarPartidos;
     </script>
 </body>
