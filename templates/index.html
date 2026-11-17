@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IA SmartBet - Motor Real de Partidos</title>
+    <title>CONBITEK - IA SmartBet Real Time</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style> body { font-family: 'Inter', sans-serif; } </style>
@@ -14,7 +14,7 @@
         <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
                 <h1 class="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                    🤖 IA SmartBet - Live API Engine
+                    🤖 CONBITEK - Motor API Live
                 </h1>
                 <p class="text-slate-400 text-sm">Sistema conectado a datos reales de partidos de fútbol mundial</p>
             </div>
@@ -29,7 +29,7 @@
             <h2 class="text-xl font-semibold mb-4 text-slate-200">Selección Optimizada del Día</h2>
             <div id="resultadoContainer" class="space-y-4">
                 <div class="bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl p-10 text-center text-slate-500">
-                    Haz clic en <span class="text-emerald-400 font-medium">"Consultar Partidos de Hoy"</span> para conectar con el servidor de Python y la API.
+                    Haz clic en <span class="text-emerald-400 font-medium">"Consultar Partidos de Hoy"</span> para conectar con el servidor y la API en vivo.
                 </div>
             </div>
         </section>
@@ -41,7 +41,8 @@
             contenedor.innerHTML = `<div class="text-center py-10 text-emerald-400 animate-pulse">Conectando con la API de fútbol y procesando variables contextuales...</div>`;
 
             try {
-                const response = await fetch('http://127.0.0.1:5000/api/analizar-partidos');
+                // Se conecta de forma dinámica a la ruta relativa de tu propio servidor desplegado
+                const response = await fetch('/api/analizar-partidos');
                 const data = await response.json();
 
                 if (data.status === "error") {
@@ -50,7 +51,7 @@
                 }
 
                 if (data.combinadas.length === 0) {
-                    contenedor.innerHTML = `<div class="bg-slate-900 p-6 rounded-xl text-center text-slate-400">No hay partidos suficientes hoy que superen el filtro de eficiencia del 80%.</div>`;
+                    contenedor.innerHTML = `<div class="bg-slate-900 p-6 rounded-xl text-center text-slate-400">No hay partidos suficientes hoy registrados en la API gratuita.</div>`;
                     return;
                 }
 
@@ -78,7 +79,7 @@
                 contenedor.innerHTML = htmlContent;
 
             } catch (err) {
-                contenedor.innerHTML = `<div class="bg-red-950/40 border border-red-500/30 p-6 rounded-xl text-red-300 text-center">❌ No se pudo conectar con el servidor backend de Python. Asegúrate de ejecutar 'python app.py'.</div>`;
+                contenedor.innerHTML = `<div class="bg-red-950/40 border border-red-500/30 p-6 rounded-xl text-red-300 text-center">❌ No se pudo conectar con el servidor backend. Intenta nuevamente en unos segundos.</div>`;
             }
         }
     </script>
