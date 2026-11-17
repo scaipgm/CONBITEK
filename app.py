@@ -8,7 +8,7 @@ CORS(app)
 
 # Usaremos la API gratuita de football-data.org (puedes registrarte gratis para obtener tu token en su web)
 # O si prefieres, puedes usar la clave de acceso público de prueba/desarrollo.
-API_KEY = os.environ.get("FOOTBALL_DATA_API_KEY", "TU_API_KEY_AQUI")
+API_KEY = os.environ.get("FOOTBALL_DATA_API_KEY", "4f32125044e3489b88e5aa8082da4cb0")
 BASE_URL = "https://api.football-data.org/v4/matches"
 
 @app.route("/")
