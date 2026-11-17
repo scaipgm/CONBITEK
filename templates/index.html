@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CONBITEK - IA SmartBet Real Time</title>
+    <title>CONBITEK - Cartelera Inteligente</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style> body { font-family: 'Inter', sans-serif; } </style>
@@ -11,66 +11,86 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen">
     
     <header class="bg-slate-900 border-b border-slate-800 py-6 px-8 shadow-md">
-        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
             <div>
                 <h1 class="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                    🤖 CONBITEK - Motor API Live
+                    🤖 CONBITEK - Apuestas Deportivas e IA
                 </h1>
-                <p class="text-slate-400 text-sm">Sistema conectado a datos reales de partidos de fútbol mundial</p>
+                <p class="text-slate-400 text-sm">Cartelera inteligente: Goles, Córners, Tarjetas y Ambos Anotan</p>
             </div>
-            <button onclick="cargarPartidosReales()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-6 py-3 rounded-xl transition shadow-lg shadow-emerald-500/20 cursor-pointer">
-                🔄 Consultar Partidos de Hoy (API Real)
+            <button onclick="cargarPartidos()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-6 py-3 rounded-xl transition shadow-lg shadow-emerald-500/20 cursor-pointer">
+                ⚡ Actualizar Cartelera
             </button>
         </div>
     </header>
 
-    <main class="max-w-6xl mx-auto p-6 md:p-8">
+    <main class="max-w-4xl mx-auto p-4 md:p-8">
         <section>
-            <h2 class="text-xl font-semibold mb-4 text-slate-200">Selección Optimizada del Día</h2>
-            <div id="resultadoContainer" class="space-y-4">
-                <div class="bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl p-10 text-center text-slate-500">
-                    Haz clic en <span class="text-emerald-400 font-medium">"Consultar Partidos de Hoy"</span> para conectar con el servidor y la API en vivo.
+            <h2 class="text-xl font-semibold mb-6 text-slate-200 border-b border-slate-800 pb-2">📋 Partidos y Pronósticos del Día</h2>
+            <div id="resultadoContainer" class="space-y-6">
+                <!-- Los partidos aparecerán ordenados uno debajo del otro aquí -->
+                <div class="bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl p-10 text-center text-slate-500 animate-pulse">
+                    Cargando cartelera de partidos...
                 </div>
             </div>
         </section>
     </main>
 
     <script>
-        async function cargarPartidosReales() {
+        async function cargarPartidos() {
             const contenedor = document.getElementById("resultadoContainer");
-            contenedor.innerHTML = `<div class="text-center py-10 text-emerald-400 animate-pulse">Conectando con la API de fútbol y procesando variables contextuales...</div>`;
+            contenedor.innerHTML = `<div class="text-center py-10 text-emerald-400 animate-pulse">Procesando historiales, córners y tarjetas...</div>`;
 
             try {
-                // Se conecta de forma dinámica a la ruta relativa de tu propio servidor desplegado
                 const response = await fetch('/api/analizar-partidos');
                 const data = await response.json();
 
-                if (data.status === "error") {
-                    contenedor.innerHTML = `<div class="bg-red-950/40 border border-red-500/30 p-6 rounded-xl text-red-300 text-center">❌ Error: ${data.message}</div>`;
-                    return;
-                }
-
-                if (data.combinadas.length === 0) {
-                    contenedor.innerHTML = `<div class="bg-slate-900 p-6 rounded-xl text-center text-slate-400">No hay partidos suficientes hoy registrados en la API gratuita.</div>`;
+                if (data.status === "error" || !data.combinadas) {
+                    contenedor.innerHTML = `<div class="bg-red-950/40 border border-red-500/30 p-6 rounded-xl text-red-300 text-center">❌ Error al cargar los datos.</div>`;
                     return;
                 }
 
                 let htmlContent = ``;
                 data.combinadas.forEach(p => {
                     htmlContent += `
-                        <div class="bg-slate-900/80 border border-slate-800 p-5 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div>
-                                <span class="text-xs text-emerald-400 font-semibold uppercase tracking-wider">${p.liga}</span>
-                                <h4 class="text-lg font-bold text-white mt-1">${p.equipoLocal} vs ${p.equipoVisitante}</h4>
-                                <p class="text-xs text-slate-400 mt-1">🕒 Horario UTC: ${p.fecha}</p>
-                                <p class="text-sm text-cyan-300 font-medium mt-2">🎯 Sugerencia IA: ${p.mercado}</p>
-                                <p class="text-xs text-slate-400 mt-2 bg-slate-950/50 p-2.5 rounded-lg border border-slate-800/60">
-                                    🧠 ${p.analisisIA}
-                                </p>
+                        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col gap-4">
+                            <!-- Cabecera -->
+                            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                                <span class="text-xs font-semibold text-emerald-400 uppercase tracking-wider bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">${p.liga}</span>
+                                <span class="text-xs bg-cyan-500/10 text-cyan-300 px-3 py-1 rounded-full border border-cyan-500/20 font-semibold">Confianza IA: ${p.probabilidad}%</span>
                             </div>
-                            <div class="text-right flex md:flex-col justify-between w-full md:w-auto items-center md:items-end border-t md:border-t-0 pt-3 md:pt-0 border-slate-800">
-                                <span class="text-xs text-slate-400">Cuota Est.: <strong class="text-white text-base">${p.cuotaEstimada}</strong></span>
-                                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-md mt-1 font-semibold">Confianza: ${p.probabilidad}%</span>
+
+                            <!-- Equipos y Fecha -->
+                            <div>
+                                <h3 class="text-xl font-bold text-white">${p.equipoLocal} vs ${p.equipoVisitante}</h3>
+                                <p class="text-xs text-slate-400 mt-0.5">🕒 ${p.fecha}</p>
+                            </div>
+
+                            <!-- Apuesta Principal -->
+                            <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                                <span class="text-xs text-slate-400 uppercase font-semibold">🎯 Apuesta Sugerida (Fija):</span>
+                                <p class="text-lg font-bold text-amber-400 mt-1">${p.mercadoPrincipal} <span class="text-xs text-slate-300 font-normal">(Cuota Est: ~${p.cuotaEstimada})</span></p>
+                            </div>
+
+                            <!-- Métricas (Córners, Tarjetas, Ambos Anotan) -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                                <div class="bg-slate-950/40 p-3 rounded-lg border border-slate-800/80">
+                                    <span class="text-xs text-slate-400 block">🚩 Córners:</span>
+                                    <strong class="text-slate-200">${p.corners}</strong>
+                                </div>
+                                <div class="bg-slate-950/40 p-3 rounded-lg border border-slate-800/80">
+                                    <span class="text-xs text-slate-400 block">🟨 Tarjetas:</span>
+                                    <strong class="text-slate-200">${p.tarjetas}</strong>
+                                </div>
+                                <div class="bg-slate-950/40 p-3 rounded-lg border border-slate-800/80">
+                                    <span class="text-xs text-slate-400 block">⚽ Ambos Anotan:</span>
+                                    <strong class="text-slate-200">${p.ambosAnotan}</strong>
+                                </div>
+                            </div>
+
+                            <!-- Análisis Contextual -->
+                            <div class="text-xs text-slate-400 bg-slate-950/50 p-3 rounded-lg border border-slate-800/60">
+                                🧠 <strong class="text-slate-300">Historial y Contexto:</strong> ${p.analisisIA}
                             </div>
                         </div>
                     `;
@@ -79,9 +99,12 @@
                 contenedor.innerHTML = htmlContent;
 
             } catch (err) {
-                contenedor.innerHTML = `<div class="bg-red-950/40 border border-red-500/30 p-6 rounded-xl text-red-300 text-center">❌ No se pudo conectar con el servidor backend. Intenta nuevamente en unos segundos.</div>`;
+                contenedor.innerHTML = `<div class="bg-red-950/40 border border-red-500/30 p-6 rounded-xl text-red-300 text-center">❌ Error de conexión con el servidor.</div>`;
             }
         }
+
+        // Cargar automáticamente al abrir la página
+        window.onload = cargarPartidos;
     </script>
 </body>
 </html>
