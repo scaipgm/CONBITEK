@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CONBITEK - Cartelera Inteligente</title>
+    <title>CONBITEK - Apuestas Deportivas e IA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style> body { font-family: 'Inter', sans-serif; } </style>
@@ -14,23 +14,23 @@
         <div class="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
             <div>
                 <h1 class="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                    🤖 CONBITEK - Apuestas Deportivas e IA
+                    🤖 CONBITEK - API en Vivo
                 </h1>
-                <p class="text-slate-400 text-sm">Cartelera inteligente: Goles, Córners, Tarjetas y Ambos Anotan</p>
+                <p class="text-slate-400 text-sm">Monitoreo de partidos reales y análisis estadístico automatizado</p>
             </div>
             <button onclick="cargarPartidos()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-6 py-3 rounded-xl transition shadow-lg shadow-emerald-500/20 cursor-pointer">
-                ⚡ Actualizar Cartelera
+                ⚡ Sincronizar API en Vivo
             </button>
         </div>
     </header>
 
     <main class="max-w-4xl mx-auto p-4 md:p-8">
         <section>
-            <h2 class="text-xl font-semibold mb-6 text-slate-200 border-b border-slate-800 pb-2">📋 Partidos y Pronósticos del Día</h2>
+            <h2 class="text-xl font-semibold mb-6 text-slate-200 border-b border-slate-800 pb-2">📋 Cartelera de Partidos en Directo</h2>
             <div id="resultadoContainer" class="space-y-6">
-                <!-- Los partidos aparecerán ordenados uno debajo del otro aquí -->
+                <!-- Los partidos reales aparecerán uno debajo del otro aquí -->
                 <div class="bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl p-10 text-center text-slate-500 animate-pulse">
-                    Cargando cartelera de partidos...
+                    Conectando con el servidor para buscar partidos reales...
                 </div>
             </div>
         </section>
@@ -39,14 +39,23 @@
     <script>
         async function cargarPartidos() {
             const contenedor = document.getElementById("resultadoContainer");
-            contenedor.innerHTML = `<div class="text-center py-10 text-emerald-400 animate-pulse">Procesando historiales, córners y tarjetas...</div>`;
+            contenedor.innerHTML = `<div class="text-center py-10 text-emerald-400 animate-pulse">Consultando base de datos de la API en vivo...</div>`;
 
             try {
                 const response = await fetch('/api/analizar-partidos');
                 const data = await response.json();
 
                 if (data.status === "error" || !data.combinadas) {
-                    contenedor.innerHTML = `<div class="bg-red-950/40 border border-red-500/30 p-6 rounded-xl text-red-300 text-center">❌ Error al cargar los datos.</div>`;
+                    contenedor.innerHTML = `<div class="bg-red-950/40 border border-red-500/30 p-6 rounded-xl text-red-300 text-center">❌ Error al conectar con el servidor backend.</div>`;
+                    return;
+                }
+
+                if (data.combinadas.length === 0) {
+                    contenedor.innerHTML = `
+                        <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl text-center text-slate-400 shadow-xl">
+                            ⚠️ <strong>No hay partidos disponibles en la API gratuita para este exacto momento.</strong><br>
+                            <span class="text-xs text-slate-500 mt-2 block">La API de football-data.org solo libera partidos en días de cartelera oficial de ligas europeas o torneos principales. Vuelve a consultar durante el fin de semana.</span>
+                        </div>`;
                     return;
                 }
 
@@ -68,11 +77,11 @@
 
                             <!-- Apuesta Principal -->
                             <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-                                <span class="text-xs text-slate-400 uppercase font-semibold">🎯 Apuesta Sugerida (Fija):</span>
+                                <span class="text-xs text-slate-400 uppercase font-semibold">🎯 Sugerencia de Mercado:</span>
                                 <p class="text-lg font-bold text-amber-400 mt-1">${p.mercadoPrincipal} <span class="text-xs text-slate-300 font-normal">(Cuota Est: ~${p.cuotaEstimada})</span></p>
                             </div>
 
-                            <!-- Métricas (Córners, Tarjetas, Ambos Anotan) -->
+                            <!-- Métricas -->
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                                 <div class="bg-slate-950/40 p-3 rounded-lg border border-slate-800/80">
                                     <span class="text-xs text-slate-400 block">🚩 Córners:</span>
@@ -90,7 +99,7 @@
 
                             <!-- Análisis Contextual -->
                             <div class="text-xs text-slate-400 bg-slate-950/50 p-3 rounded-lg border border-slate-800/60">
-                                🧠 <strong class="text-slate-300">Historial y Contexto:</strong> ${p.analisisIA}
+                                🧠 <strong class="text-slate-300">Contexto en vivo:</strong> ${p.analisisIA}
                             </div>
                         </div>
                     `;
@@ -99,7 +108,7 @@
                 contenedor.innerHTML = htmlContent;
 
             } catch (err) {
-                contenedor.innerHTML = `<div class="bg-red-950/40 border border-red-500/30 p-6 rounded-xl text-red-300 text-center">❌ Error de conexión con el servidor.</div>`;
+                contenedor.innerHTML = `<div class="bg-red-950/40 border border-red-500/30 p-6 rounded-xl text-red-300 text-center">❌ Error de conexión al intentar obtener los partidos.</div>`;
             }
         }
 
