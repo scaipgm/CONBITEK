@@ -3,122 +3,241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CONBITEK - Análisis en Vivo</title>
+    <title>CONBITEK - Combinadas y Análisis en Vivo</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style> body { font-family: 'Inter', sans-serif; } </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
-    
-    <header class="bg-slate-900 border-b border-slate-800 py-6 px-8 shadow-md">
-        <div class="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
-            <div>
-                <h1 class="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                    🤖 CONBITEK - Centro de Análisis
+<body class="bg-blue-950 text-blue-50 min-h-screen">
+
+    <!-- Encabezado Azul y Naranja -->
+    <header class="bg-blue-900/95 border-b-2 border-orange-500 py-5 px-6 shadow-xl">
+        <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-center md:text-left">
+                <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-amber-400">
+                    ⚡ CONBITEK <span class="text-orange-400">SMARTBET</span>
                 </h1>
-                <p class="text-slate-400 text-sm">Haz clic en cualquier partido para ver estadísticas, rachas y Ambos Anotan</p>
+                <p class="text-blue-200 text-sm mt-0.5">
+                    Liga, horario, últimos 5 partidos (V/E/D) y métricas para armar tu combinada
+                </p>
             </div>
-            <button onclick="cargarPartidos()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-6 py-3 rounded-xl transition shadow-lg shadow-emerald-500/20 cursor-pointer">
-                ⚡ Actualizar Cartelera
+            <button onclick="cargarPartidos(true)" class="bg-orange-500 hover:bg-orange-400 text-blue-950 font-extrabold px-6 py-3 rounded-xl transition shadow-lg shadow-orange-500/25 cursor-pointer">
+                🔄 Actualizar Partidos
             </button>
         </div>
     </header>
 
-    <main class="max-w-4xl mx-auto p-4 md:p-8">
-        <section>
-            <h2 class="text-xl font-semibold mb-6 text-slate-200 border-b border-slate-800 pb-2">📋 Partidos Disponibles (Haz clic para expandir)</h2>
-            <div id="resultadoContainer" class="space-y-4">
-                <div class="bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl p-10 text-center text-slate-500 animate-pulse">
-                    Cargando cartelera de partidos reales...
-                </div>
+    <!-- Notificación al copiar pick -->
+    <div id="toastCopiado" class="hidden fixed bottom-5 right-5 z-50 bg-amber-400 text-blue-950 font-bold px-4 py-3 rounded-xl shadow-2xl border border-orange-500">
+        ✅ Pick copiado para tu combinada
+    </div>
+
+    <!-- Listado Vertical de Partidos -->
+    <main class="max-w-5xl mx-auto p-4 md:p-8">
+        <div class="flex items-center justify-between mb-6 border-b border-blue-800 pb-3">
+            <h2 class="text-lg md:text-xl font-bold text-amber-300">
+                📋 Cartelera de Partidos (Clic para ver tabla y métricas)
+            </h2>
+            <span id="contadorPartidos" class="text-xs font-semibold bg-blue-900 text-amber-300 border border-amber-400/30 px-3 py-1 rounded-full">
+                Cargando...
+            </span>
+        </div>
+
+        <div id="contenedorPartidos" class="space-y-5">
+            <div class="bg-blue-900/50 border border-blue-800 rounded-2xl p-10 text-center text-amber-300 animate-pulse">
+                Consultando liga, horarios y rachas de los últimos 5 partidos...
             </div>
-        </section>
+        </div>
     </main>
 
     <script>
-        let partidosGlobales = [];
+        let partidosData = [];
+
+        function renderBadgesForma(formaArr) {
+            if (!formaArr || formaArr.length === 0) {
+                return `<span class="text-xs text-blue-300">Sin registros</span>`;
+            }
+            return formaArr.slice(-5).map(res => {
+                if (res === "V") {
+                    return `<span class="inline-flex items-center justify-center w-6 h-6 rounded-md text-xs font-extrabold bg-emerald-400 text-blue-950" title="Victoria">V</span>`;
+                }
+                if (res === "E") {
+                    return `<span class="inline-flex items-center justify-center w-6 h-6 rounded-md text-xs font-extrabold bg-amber-400 text-blue-950" title="Empate">E</span>`;
+                }
+                return `<span class="inline-flex items-center justify-center w-6 h-6 rounded-md text-xs font-extrabold bg-orange-600 text-white" title="Derrota">D</span>`;
+            }).join("");
+        }
 
         async function cargarPartidos() {
-            const contenedor = document.getElementById("resultadoContainer");
-            contenedor.innerHTML = `<div class="text-center py-10 text-emerald-400 animate-pulse">Sincronizando partidos y estadísticas...</div>`;
+            const cont = document.getElementById("contenedorPartidos");
+            const badge = document.getElementById("contadorPartidos");
+
+            cont.innerHTML = `
+                <div class="bg-blue-900/50 border border-blue-800 rounded-2xl p-10 text-center text-amber-300 animate-pulse">
+                    Analizando liga, horario, posición en tabla y últimos 5 resultados...
+                </div>`;
 
             try {
-                const response = await fetch('/api/analizar-partidos');
-                const data = await response.json();
+                const resp = await fetch("/api/analizar-partidos");
+                const data = await resp.json();
+                partidosData = data.partidos || [];
 
-                if (!data.combinadas || data.combinadas.length === 0) {
-                    contenedor.innerHTML = `<div class="bg-slate-900 p-6 rounded-xl text-center text-slate-400">No hay partidos disponibles en este momento.</div>`;
+                badge.textContent = `${partidosData.length} partidos`;
+
+                if (partidosData.length === 0) {
+                    cont.innerHTML = `
+                        <div class="bg-blue-900/60 border border-amber-400/40 rounded-2xl p-8 text-center text-blue-100">
+                            ⚠️ No hay partidos disponibles en la API en este momento. Vuelve a intentar más tarde.
+                        </div>`;
                     return;
                 }
 
-                partidosGlobales = data.combinadas;
-                let htmlContent = ``;
+                cont.innerHTML = partidosData.map(p => {
+                    const a = p.analisis;
+                    const l = p.statsLocal;
+                    const v = p.statsVisitante;
 
-                partidosGlobales.forEach(p => {
-                    htmlContent += `
-                        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl transition hover:border-emerald-500/50 cursor-pointer" onclick="toggleDetalle(${p.id})">
-                            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                                <span class="text-xs font-semibold text-emerald-400 uppercase tracking-wider bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">${p.liga}</span>
-                                <span class="text-xs text-slate-400">🕒 ${p.fecha} | <strong class="text-emerald-400">🔍 Clic para ver análisis</strong></span>
+                    return `
+                        <div class="bg-blue-900/80 border border-blue-700 hover:border-amber-400 rounded-2xl p-5 md:p-6 shadow-xl transition">
+                            <!-- Fila Superior: Liga + Horario -->
+                            <div class="flex flex-wrap justify-between items-center gap-2 pb-3 border-b border-blue-800" onclick="togglePanel(${p.id})">
+                                <span class="bg-orange-500 text-blue-950 font-extrabold text-xs uppercase px-3 py-1 rounded-full cursor-pointer">
+                                    🏆 ${p.liga}
+                                </span>
+                                <span class="bg-blue-950 text-amber-300 border border-amber-400/40 font-semibold text-xs px-3 py-1 rounded-full cursor-pointer">
+                                    🕒 ${p.horario}
+                                </span>
                             </div>
 
-                            <div class="mt-4 flex justify-between items-center">
-                                <h3 class="text-xl font-bold text-white">${p.equipoLocal} vs ${p.equipoVisitante}</h3>
-                                <span class="text-xs bg-cyan-500/10 text-cyan-300 px-3 py-1 rounded-full border border-cyan-500/20 font-semibold">Confianza: ${p.probabilidad}%</span>
+                            <!-- Centro: Equipos + Pick Sugerido -->
+                            <div class="mt-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer" onclick="togglePanel(${p.id})">
+                                <div>
+                                    <h3 class="text-xl md:text-2xl font-extrabold text-white">
+                                        ${p.equipoLocal} <span class="text-orange-400 font-bold mx-1">vs</span> ${p.equipoVisitante}
+                                    </h3>
+                                    <p class="text-xs text-blue-300 mt-1">
+                                        Tabla: <strong class="text-amber-300">${p.equipoLocal} (${p.posicionLocal}°, ${p.puntosLocal} pts)</strong> vs <strong class="text-amber-300">${p.equipoVisitante} (${p.posicionVisitante}°, ${p.puntosVisitante} pts)</strong>
+                                    </p>
+                                </div>
+
+                                <div class="bg-blue-950 border border-amber-400/50 rounded-xl px-4 py-3 lg:text-right">
+                                    <span class="block text-[11px] uppercase tracking-wider text-amber-300 font-bold">
+                                        🎯 Pick Combinada (~${a.cuotaEstimada}) · Conf. ${a.confianza}%
+                                    </span>
+                                    <span class="block text-sm md:text-base font-extrabold text-orange-400 mt-0.5">
+                                        ${a.pickSugerido}
+                                    </span>
+                                </div>
                             </div>
 
-                            <!-- Panel de Detalles Oculto por defecto, se despliega al hacer clic -->
-                            <div id="detalle-${p.id}" class="hidden mt-6 pt-6 border-t border-slate-800 space-y-4">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                    <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-                                        <span class="text-xs font-bold text-emerald-400 uppercase block mb-1">🏠 Local (${p.equipoLocal}):</span>
-                                        <p class="text-slate-300">✅ ${p.estadisticas.victoriasLocal}</p>
-                                        <p class="text-slate-400 text-xs mt-1">❌ ${p.estadisticas.derrotasLocal}</p>
+                            <!-- Botones Rápidos -->
+                            <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+                                <button onclick="togglePanel(${p.id})" class="text-xs font-bold text-amber-300 hover:text-amber-200 underline cursor-pointer">
+                                    📊 Ver tabla últimos 5 partidos, goles, córners y amarillas
+                                </button>
+                                <button onclick="copiarPick(${p.id})" class="bg-amber-400 hover:bg-amber-300 text-blue-950 font-extrabold text-xs px-4 py-2 rounded-lg transition cursor-pointer">
+                                    📋 Copiar para Combinada
+                                </button>
+                            </div>
+
+                            <!-- Panel Desplegable -->
+                            <div id="panel-${p.id}" class="hidden mt-5 pt-5 border-t border-blue-800 space-y-4">
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left border-collapse text-xs md:text-sm">
+                                        <thead>
+                                            <tr class="bg-blue-950 text-amber-300 border-b border-blue-700">
+                                                <th class="p-3">Métrica</th>
+                                                <th class="p-3">${p.equipoLocal}</th>
+                                                <th class="p-3">${p.equipoVisitante}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-blue-800/80 bg-blue-950/50">
+                                            <tr>
+                                                <td class="p-3 font-semibold text-blue-200">Últimos 5 (V/E/D)</td>
+                                                <td class="p-3">
+                                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                                        ${renderBadgesForma(l.forma)}
+                                                        <span class="text-xs text-blue-300 ml-1">(${l.resumen})</span>
+                                                    </div>
+                                                </td>
+                                                <td class="p-3">
+                                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                                        ${renderBadgesForma(v.forma)}
+                                                        <span class="text-xs text-blue-300 ml-1">(${v.resumen})</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="p-3 font-semibold text-blue-200">Goles A Favor / En Contra</td>
+                                                <td class="p-3 font-bold text-amber-300">${l.prom_gf} GF / ${l.prom_gc} GC</td>
+                                                <td class="p-3 font-bold text-amber-300">${v.prom_gf} GF / ${v.prom_gc} GC</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="p-3 font-semibold text-blue-200">Frecuencia Anotadora</td>
+                                                <td class="p-3 text-white">${l.pct_anota}% anota</td>
+                                                <td class="p-3 text-white">${v.pct_anota}% anota</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Métricas de Combinada -->
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                                    <div class="bg-blue-950 border border-blue-800 rounded-xl p-3">
+                                        <span class="text-blue-300 block">⚽ Ambos Anotan</span>
+                                        <strong class="text-amber-300 text-sm">${a.ambosAnotan}</strong>
                                     </div>
-                                    <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-                                        <span class="text-xs font-bold text-cyan-400 uppercase block mb-1">✈️ Visitante (${p.equipoVisitante}):</span>
-                                        <p class="text-slate-300">✅ ${p.estadisticas.victoriasVisitante}</p>
-                                        <p class="text-slate-400 text-xs mt-1">❌ ${p.estadisticas.derrotasVisitante}</p>
+                                    <div class="bg-blue-950 border border-blue-800 rounded-xl p-3">
+                                        <span class="text-blue-300 block">🚩 Córners Est.</span>
+                                        <strong class="text-orange-400 text-sm">${a.cornersPromedio}</strong>
+                                    </div>
+                                    <div class="bg-blue-950 border border-blue-800 rounded-xl p-3">
+                                        <span class="text-blue-300 block">🟨 Amarillas Est.</span>
+                                        <strong class="text-amber-300 text-sm">${a.amarillasPromedio}</strong>
+                                    </div>
+                                    <div class="bg-blue-950 border border-blue-800 rounded-xl p-3">
+                                        <span class="text-blue-300 block">🚩 Fueras de Juego</span>
+                                        <strong class="text-blue-100 text-sm">${a.offsidesPromedio}</strong>
                                     </div>
                                 </div>
 
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                                    <div class="bg-slate-950/40 p-3 rounded-lg border border-slate-800/80">
-                                        <span class="text-xs text-slate-400 block">⚽ Ambos Anotan (BTTS):</span>
-                                        <strong class="text-amber-400">${p.estadisticas.ambosAnotanProb}</strong>
-                                    </div>
-                                    <div class="bg-slate-950/40 p-3 rounded-lg border border-slate-800/80">
-                                        <span class="text-xs text-slate-400 block">📊 Promedio Goles:</span>
-                                        <strong class="text-slate-200">${p.estadisticas.golesPromedio}</strong>
-                                    </div>
-                                    <div class="bg-slate-950/40 p-3 rounded-lg border border-slate-800/80">
-                                        <span class="text-xs text-slate-400 block">🚩 Córners / Tarjetas:</span>
-                                        <strong class="text-slate-200">${p.estadisticas.cornersEstimados}</strong>
-                                    </div>
-                                </div>
-
-                                <div class="text-xs text-slate-300 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
-                                    🧠 <strong class="text-emerald-400">Análisis Táctico Detallado:</strong> ${p.estadisticas.analisisProfundo}
+                                <!-- Lectura del Partido -->
+                                <div class="bg-blue-950/90 border-l-4 border-orange-500 rounded-r-xl p-4 text-xs md:text-sm text-blue-100">
+                                    <strong class="text-amber-400">📌 Lectura para Combinada:</strong> ${a.diagnostico}
                                 </div>
                             </div>
                         </div>
                     `;
-                });
-
-                contenedor.innerHTML = htmlContent;
+                }).join("");
 
             } catch (err) {
-                contenedor.innerHTML = `<div class="bg-red-950/40 border border-red-500/30 p-6 rounded-xl text-red-300 text-center">❌ Error de conexión al intentar obtener los partidos.</div>`;
+                cont.innerHTML = `
+                    <div class="bg-blue-900/60 border border-orange-500 rounded-2xl p-8 text-center text-orange-300">
+                        ❌ No se pudo cargar la cartelera desde el servidor.
+                    </div>`;
             }
         }
 
-        function toggleDetalle(id) {
-            const detalle = document.getElementById(`detalle-${id}`);
-            if (detalle.classList.contains('hidden')) {
-                detalle.classList.remove('hidden');
-            } else {
-                detalle.classList.add('hidden');
-            }
+        function togglePanel(id) {
+            const el = document.getElementById(`panel-${id}`);
+            if (el) el.classList.toggle("hidden");
+        }
+
+        function copiarPick(id) {
+            const p = partidosData.find(item => item.id === id);
+            if (!p) return;
+            const texto = [
+                `🏆 ${p.liga} | 🕒 ${p.horario}`,
+                `⚽ ${p.equipoLocal} vs ${p.equipoVisitante}`,
+                `🎯 Pick: ${p.analisis.pickSugerido} (Cuota ~${p.analisis.cuotaEstimada})`,
+                `📊 ${p.analisis.ambosAnotan} | ${p.analisis.cornersPromedio} | ${p.analisis.amarillasPromedio}`
+            ].join("\n");
+
+            navigator.clipboard.writeText(texto).then(() => {
+                const toast = document.getElementById("toastCopiado");
+                toast.classList.remove("hidden");
+                setTimeout(() => toast.classList.add("hidden"), 2200);
+            });
         }
 
         window.onload = cargarPartidos;
