@@ -11,12 +11,11 @@ CORS(app)
 API_KEY = os.environ.get("FOOTBALL_DATA_API_KEY", "4f32125044e3489b88e5aa8082da4cb0")
 BASE_URL = "https://api.football-data.org/v4"
 
-# Caché en memoria (15 minutos) para respetar el límite de peticiones de la API gratuita
 CACHE = {
     "timestamp": 0,
     "data": None
 }
-CACHE_TTL_SECONDS = 900
+CACHE_TTL_SECONDS = 900  # 15 minutos
 
 
 def formatear_horario_argentina(utc_str):
@@ -26,6 +25,17 @@ def formatear_horario_argentina(utc_str):
         dt_utc = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
         dt_arg = dt_utc.astimezone(timezone(timedelta(hours=-3)))
         return dt_arg.strftime("%d/%m/%Y - %H:%M hs (ARG)")
+    except Exception:
+        return utc_str
+
+
+def formatear_fecha_corta(utc_str):
+    if not utc_str:
+        return "Sin fecha"
+    try:
+        dt_utc = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
+        dt_arg = dt_utc.astimezone(timezone(timedelta(hours=-3)))
+        return dt_arg.strftime("%d/%m/%Y")
     except Exception:
         return utc_str
 
@@ -44,106 +54,120 @@ def obtener_tabla_posiciones(competition_code, headers):
                     for row in st.get("table", []):
                         team_id = row.get("team", {}).get("id")
                         if team_id:
+                            pj = max(1, row.get("playedGames") or 1)
+                            gf = row.get("goalsFor") or 0
+                            gc = row.get("goalsAgainst") or 0
+                            w = row.get("won") or 0
+                            d = row.get("draw") or 0
+                            l = row.get("lost") or 0
+                            form_raw = row.get("form") or ""
+                            forma_lista = [c.strip() for c in form_raw.split(",") if c.strip() in ("W", "D", "L")]
+                            forma_ved = ["V" if x == "W" else ("E" if x == "D" else "D") for x in forma_lista][-5:]
+
                             posiciones[team_id] = {
                                 "posicion": row.get("position"),
                                 "puntos": row.get("points"),
                                 "pj": row.get("playedGames"),
-                                "gf": row.get("goalsFor"),
-                                "gc": row.get("goalsAgainst")
+                                "gf": gf,
+                                "gc": gc,
+                                "prom_gf": round(gf / pj, 2),
+                                "prom_gc": round(gc / pj, 2),
+                                "pct_anota": min(95, max(35, int(round((gf / pj) * 45 + 25)))),
+                                "forma": forma_ved,
+                                "resumen": f"{w}V - {d}E - {l}D (temporada)"
                             }
     except Exception as e:
         print(f"Error tabla {competition_code}: {e}")
     return posiciones
 
 
-def obtener_ultimos_5(team_id, headers):
+def obtener_ultimos_5_equipo(team_id, headers):
     forma = []
     gf_total = 0
     gc_total = 0
     anoto_en = 0
-    partidos_contados = 0
-
+    cont = 0
     if not team_id:
-        return {
-            "forma": [],
-            "resumen": "Sin historial reciente",
-            "prom_gf": 0.0,
-            "prom_gc": 0.0,
-            "pct_anota": 0
-        }
-
+        return None
     try:
         url = f"{BASE_URL}/teams/{team_id}/matches"
-        params = {"status": "FINISHED", "limit": 5}
-        res = requests.get(url, headers=headers, params=params, timeout=8)
+        res = requests.get(url, headers=headers, params={"status": "FINISHED", "limit": 5}, timeout=8)
         if res.status_code == 200:
             matches = res.json().get("matches", [])[-5:]
             for m in matches:
-                score = m.get("score", {}).get("fullTime", {})
-                home_g = score.get("home")
-                away_g = score.get("away")
-                if home_g is None or away_g is None:
+                ft = m.get("score", {}).get("fullTime", {})
+                hg = ft.get("home")
+                ag = ft.get("away")
+                if hg is None or ag is None:
                     continue
-
-                partidos_contados += 1
+                cont += 1
                 es_local = m.get("homeTeam", {}).get("id") == team_id
-                g_favor = home_g if es_local else away_g
-                g_contra = away_g if es_local else home_g
-
-                gf_total += g_favor
-                gc_total += g_contra
-                if g_favor > 0:
+                gf = hg if es_local else ag
+                gc = ag if es_local else hg
+                gf_total += gf
+                gc_total += gc
+                if gf > 0:
                     anoto_en += 1
-
-                if g_favor > g_contra:
+                if gf > gc:
                     forma.append("V")
-                elif g_favor < g_contra:
+                elif gf < gc:
                     forma.append("D")
                 else:
                     forma.append("E")
     except Exception as e:
-        print(f"Error últimos 5 equipo {team_id}: {e}")
+        print(f"Error últimos 5 {team_id}: {e}")
 
-    if partidos_contados == 0:
-        return {
-            "forma": [],
-            "resumen": "Sin datos recientes",
-            "prom_gf": 1.2,
-            "prom_gc": 1.1,
-            "pct_anota": 60
-        }
-
-    v_count = forma.count("V")
-    e_count = forma.count("E")
-    d_count = forma.count("D")
+    if cont == 0:
+        return None
 
     return {
         "forma": forma,
-        "resumen": f"{v_count}V - {e_count}E - {d_count}D (últ. {partidos_contados})",
-        "prom_gf": round(gf_total / partidos_contados, 2),
-        "prom_gc": round(gc_total / partidos_contados, 2),
-        "pct_anota": int(round((anoto_en / partidos_contados) * 100))
+        "resumen": f"{forma.count('V')}V - {forma.count('E')}E - {forma.count('D')}D (últ. {cont})",
+        "prom_gf": round(gf_total / cont, 2),
+        "prom_gc": round(gc_total / cont, 2),
+        "pct_anota": int(round((anoto_en / cont) * 100))
+    }
+
+
+def construir_stats_fallback(info_equipo):
+    if info_equipo:
+        return {
+            "forma": info_equipo.get("forma", []),
+            "resumen": info_equipo.get("resumen", "Datos de tabla"),
+            "prom_gf": info_equipo.get("prom_gf", 1.2),
+            "prom_gc": info_equipo.get("prom_gc", 1.1),
+            "pct_anota": info_equipo.get("pct_anota", 60)
+        }
+    return {
+        "forma": [],
+        "resumen": "Sin historial disponible",
+        "prom_gf": 1.2,
+        "prom_gc": 1.1,
+        "pct_anota": 60
     }
 
 
 def calcular_analisis_combinada(home_name, away_name, liga_name, pos_local, pos_visit, stats_local, stats_visit):
     prom_goles_partido = round(stats_local["prom_gf"] + stats_visit["prom_gf"], 2)
-    if prom_goles_partido == 0:
-        prom_goles_partido = round((stats_local["prom_gf"] + stats_visit["prom_gc"] + stats_visit["prom_gf"] + stats_local["prom_gc"]) / 2, 2)
-
     btts_score = int(round((stats_local["pct_anota"] + stats_visit["pct_anota"]) / 2))
-    ambos_anotan = "SÍ (Alta tendencia)" if btts_score >= 65 and stats_local["prom_gc"] >= 0.8 and stats_visit["prom_gc"] >= 0.8 else "Moderado / Revisar línea"
 
-    # Proyección de córners, amarillas y fueras de juego en función del ritmo de goles y tabla
+    if btts_score >= 65 and stats_local["prom_gc"] >= 0.9 and stats_visit["prom_gc"] >= 0.9:
+        ambos_anotan = f"SÍ ({btts_score}%)"
+    elif btts_score >= 52:
+        ambos_anotan = f"Probable ({btts_score}%)"
+    else:
+        ambos_anotan = f"Bajo ({btts_score}%)"
+
     factor_ritmo = max(0.0, prom_goles_partido - 2.0)
     corners_est = round(8.5 + min(3.0, factor_ritmo * 1.1), 1)
-    amarillas_est = round(4.0 + (0.6 if (pos_local and pos_visit and abs(pos_local - pos_visit) <= 3) else 0.0) + (0.4 if btts_score >= 70 else 0.0), 1)
-    offsides_est = round(3.2 + min(2.0, factor_ritmo * 0.7), 1)
+    diff_pos = abs(pos_local - pos_visit) if (isinstance(pos_local, int) and isinstance(pos_visit, int)) else 6
+    amarillas_est = round(3.8 + (0.7 if diff_pos <= 4 else 0.0) + (0.4 if btts_score >= 68 else 0.0), 1)
+    offsides_est = round(3.0 + min(2.0, factor_ritmo * 0.7), 1)
 
-    if prom_goles_partido >= 2.8 and btts_score >= 65:
+    if prom_goles_partido >= 2.7 and btts_score >= 65:
         pick_sugerido = "Ambos Anotan (Sí) o Más de 2.0 Goles"
         cuota_est = 1.92
-    elif prom_goles_partido <= 2.0:
+    elif prom_goles_partido <= 2.1:
         pick_sugerido = "Menos de 3.0 Goles + Doble Oportunidad"
         cuota_est = 1.78
     else:
@@ -151,22 +175,22 @@ def calcular_analisis_combinada(home_name, away_name, liga_name, pos_local, pos_
         cuota_est = 1.85
 
     pos_texto = ""
-    if pos_local and pos_visit:
-        pos_texto = f"En tabla: {home_name} ({pos_local}°) vs {away_name} ({pos_visit}°). "
+    if isinstance(pos_local, int) and isinstance(pos_visit, int):
+        pos_texto = f"Tabla: {home_name} ({pos_local}°) vs {away_name} ({pos_visit}°). "
 
     diagnostico = (
-        f"{pos_texto}{home_name} promedia {stats_local['prom_gf']} GF / {stats_local['prom_gc']} GC "
-        f"({stats_local['resumen']}) y {away_name} {stats_visit['prom_gf']} GF / {stats_visit['prom_gc']} GC "
-        f"({stats_visit['resumen']}). Estimación de ritmo para {liga_name}: {prom_goles_partido} goles esperados."
+        f"{pos_texto}{home_name} ({stats_local['prom_gf']} GF / {stats_local['prom_gc']} GC · {stats_local['resumen']}) "
+        f"vs {away_name} ({stats_visit['prom_gf']} GF / {stats_visit['prom_gc']} GC · {stats_visit['resumen']}). "
+        f"Proyección {liga_name}: {prom_goles_partido} goles estimados."
     )
 
-    confianza = min(92, max(68, int(round(65 + (btts_score * 0.22)))))
+    confianza = min(92, max(68, int(round(64 + (btts_score * 0.23)))))
 
     return {
         "pickSugerido": pick_sugerido,
         "cuotaEstimada": cuota_est,
         "confianza": confianza,
-        "ambosAnotan": f"{ambos_anotan} ({btts_score}%)",
+        "ambosAnotan": ambos_anotan,
         "golesPromedio": f"{prom_goles_partido} goles/partido",
         "cornersPromedio": f"Más de {corners_est} córners",
         "amarillasPromedio": f"~{amarillas_est} amarillas",
@@ -180,6 +204,15 @@ def home():
     return render_template("index.html")
 
 
+@app.route("/api/detalle-equipo/<int:team_id>", methods=["GET"])
+def detalle_equipo(team_id):
+    headers = {"X-Auth-Token": API_KEY}
+    data = obtener_ultimos_5_equipo(team_id, headers)
+    if not data:
+        return jsonify({"status": "empty", "stats": None})
+    return jsonify({"status": "success", "stats": data})
+
+
 @app.route("/api/analizar-partidos", methods=["GET"])
 def analizar_partidos():
     ahora = time.time()
@@ -189,11 +222,12 @@ def analizar_partidos():
     headers = {"X-Auth-Token": API_KEY}
     partidos_procesados = []
     tablas_cache = {}
-    rachas_cache = {}
+    ligas_set = set()
 
     try:
-        hoy = datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d")
-        hasta = (datetime.now(timezone(timedelta(hours=-3))) + timedelta(days=3)).strftime("%Y-%m-%d")
+        tz_arg = timezone(timedelta(hours=-3))
+        hoy = (datetime.now(tz_arg) - timedelta(days=1)).strftime("%Y-%m-%d")
+        hasta = (datetime.now(tz_arg) + timedelta(days=7)).strftime("%Y-%m-%d")
 
         res = requests.get(
             f"{BASE_URL}/matches",
@@ -206,16 +240,22 @@ def analizar_partidos():
         if res.status_code == 200:
             matches = res.json().get("matches", [])
 
-        # Si no hay partidos en la ventana inmediata, consultamos los próximos disponibles en la API
         if not matches:
             res_all = requests.get(f"{BASE_URL}/matches", headers=headers, timeout=10)
             if res_all.status_code == 200:
                 matches = res_all.json().get("matches", [])
 
-        for idx, m in enumerate(matches[:8]):
+        # Priorizamos partidos por jugarse o en vivo primero, y luego terminados recientes
+        estados_pendientes = {"SCHEDULED", "TIMED", "IN_PLAY", "PAUSED"}
+        pendientes = [m for m in matches if m.get("status") in estados_pendientes]
+        otros = [m for m in matches if m.get("status") not in estados_pendientes]
+        ordenados = (pendientes + otros)[:35]
+
+        for idx, m in enumerate(ordenados):
             comp = m.get("competition", {})
             comp_name = comp.get("name", "Competencia Oficial")
             comp_code = comp.get("code")
+            ligas_set.add(comp_name)
 
             home = m.get("homeTeam", {})
             away = m.get("awayTeam", {})
@@ -228,38 +268,40 @@ def analizar_partidos():
                 tablas_cache[comp_code] = obtener_tabla_posiciones(comp_code, headers)
 
             tabla_liga = tablas_cache.get(comp_code, {})
-            info_local = tabla_liga.get(home_id, {})
-            info_visit = tabla_liga.get(away_id, {})
+            info_local = tabla_liga.get(home_id)
+            info_visit = tabla_liga.get(away_id)
 
-            if home_id not in rachas_cache:
-                rachas_cache[home_id] = obtener_ultimos_5(home_id, headers)
-            if away_id not in rachas_cache:
-                rachas_cache[away_id] = obtener_ultimos_5(away_id, headers)
-
-            stats_local = rachas_cache[home_id]
-            stats_visit = rachas_cache[away_id]
+            stats_local = construir_stats_fallback(info_local)
+            stats_visit = construir_stats_fallback(info_visit)
 
             analisis = calcular_analisis_combinada(
                 home_name,
                 away_name,
                 comp_name,
-                info_local.get("posicion"),
-                info_visit.get("posicion"),
+                info_local.get("posicion") if info_local else None,
+                info_visit.get("posicion") if info_visit else None,
                 stats_local,
                 stats_visit
             )
+
+            estado_raw = m.get("status", "SCHEDULED")
+            ya_jugado = estado_raw in ("FINISHED", "AWARDED")
 
             partidos_procesados.append({
                 "id": idx,
                 "liga": comp_name,
                 "horario": formatear_horario_argentina(m.get("utcDate")),
-                "estado": m.get("status", "SCHEDULED"),
+                "fechaDia": formatear_fecha_corta(m.get("utcDate")),
+                "estado": estado_raw,
+                "yaJugado": ya_jugado,
+                "homeId": home_id,
+                "awayId": away_id,
                 "equipoLocal": home_name,
                 "equipoVisitante": away_name,
-                "posicionLocal": info_local.get("posicion", "-"),
-                "puntosLocal": info_local.get("puntos", "-"),
-                "posicionVisitante": info_visit.get("posicion", "-"),
-                "puntosVisitante": info_visit.get("puntos", "-"),
+                "posicionLocal": info_local.get("posicion", "-") if info_local else "-",
+                "puntosLocal": info_local.get("puntos", "-") if info_local else "-",
+                "posicionVisitante": info_visit.get("posicion", "-") if info_visit else "-",
+                "puntosVisitante": info_visit.get("puntos", "-") if info_visit else "-",
                 "statsLocal": stats_local,
                 "statsVisitante": stats_visit,
                 "analisis": analisis
@@ -271,6 +313,7 @@ def analizar_partidos():
     payload = {
         "status": "success",
         "total": len(partidos_procesados),
+        "ligas": sorted(list(ligas_set)),
         "partidos": partidos_procesados
     }
 
